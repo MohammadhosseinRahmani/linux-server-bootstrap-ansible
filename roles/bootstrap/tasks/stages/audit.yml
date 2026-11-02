@@ -1,0 +1,37 @@
+---
+- name: Stage 9 - auditd
+  block:
+    - name: Install auditd
+      package:
+        name: "{{ 'auditd' if bootstrap_family == 'debian' else 'audit' }}"
+        state: present
+      when: not bootstrap_dry_run
+
+    - name: Copy audit rules
+      copy:
+        src: audit.rules
+        dest: /etc/audit/rules.d/99-linux-server-bootstrap.rules
+        owner: root
+        group: root
+        mode: '0600'
+      when: not bootstrap_dry_run
+      notify: restart auditd
+
+    - name: Load audit rules
+      command: augenrules --load
+      changed_when: true
+      when: not bootstrap_dry_run
+      ignore_errors: true
+
+    - name: Enable and start auditd
+      service:
+        name: auditd
+        enabled: true
+        state: started
+      when: bootstrap_is_systemd and not bootstrap_dry_run
+
+  tags: ['audit']
+  rescue:
+    - name: audit stage failed
+      fail:
+        msg: "audit configuration failed"

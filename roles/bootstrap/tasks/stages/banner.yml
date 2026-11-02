@@ -1,0 +1,34 @@
+---
+- name: Stage 12 - banner
+  block:
+    - name: Copy login banner
+      copy:
+        src: banner.txt
+        dest: /etc/issue
+        owner: root
+        group: root
+        mode: '0644'
+      when: not bootstrap_dry_run
+
+    - name: Copy network banner
+      copy:
+        src: banner.txt
+        dest: /etc/issue.net
+        owner: root
+        group: root
+        mode: '0644'
+      when: not bootstrap_dry_run
+
+    - name: Set SSH banner
+      lineinfile:
+        path: /etc/ssh/sshd_config.d/00-linux-server-bootstrap.conf
+        line: "Banner /etc/issue.net"
+        state: present
+      when: not bootstrap_dry_run
+      notify: reload sshd
+
+  tags: ['banner']
+  rescue:
+    - name: banner stage failed
+      fail:
+        msg: "banner configuration failed"

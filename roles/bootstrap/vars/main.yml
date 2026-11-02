@@ -1,0 +1,30 @@
+---
+bootstrap_stages:
+  - base
+  - users
+  - ssh
+  - firewall
+  - fail2ban
+  - sysctl
+  - limits
+  - perms
+  - audit
+  - mac
+  - services
+  - banner
+  - auth
+
+bootstrap_stage_order:
+  - base
+  - users
+  - ssh
+  - firewall
+  - fail2ban
+  - sysctl
+  - limits
+  - perms
+  - audit
+  - mac
+  - services
+  - banner
+  - auth

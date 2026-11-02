@@ -1,0 +1,99 @@
+---
+- name: Stage 3 - SSH hardening
+  block:
+    - name: Check SSH allow users provided
+      assert:
+        that:
+          - bootstrap_ssh_users | length > 0
+        fail_msg: "At least one SSH user must be specified via bootstrap_ssh_users"
+      when: not bootstrap_dry_run
+
+    - name: Guard against locking out current user
+      assert:
+        that:
+          - ansible_user in bootstrap_ssh_users
+        fail_msg: "Current user {{ ansible_user }} would lose SSH access. Add it to bootstrap_ssh_users."
+        quiet: true
+      when: not bootstrap_assume_yes | bool and not bootstrap_dry_run
+
+    - name: Create backup timestamp
+      set_fact:
+        bootstrap_backup_ts: "{{ ansible_date_time.epoch }}"
+
+    - name: Backup SSH config
+      copy:
+        src: /etc/ssh/sshd_config
+        dest: "{{ bootstrap_backup_root }}/ssh/{{ bootstrap_backup_ts }}/sshd_config"
+        remote_src: true
+        backup: no
+        owner: root
+        group: root
+        mode: '0600'
+      when: not bootstrap_dry_run
+
+    - name: Backup sshd_config.d
+      shell: |
+        mkdir -p {{ bootstrap_backup_root }}/ssh/{{ bootstrap_backup_ts }}/sshd_config.d
+        cp -r /etc/ssh/sshd_config.d/* {{ bootstrap_backup_root }}/ssh/{{ bootstrap_backup_ts }}/sshd_config.d/ 2>/dev/null || true
+      changed_when: false
+      when: not bootstrap_dry_run
+
+    - name: Ensure sshd_config.d directory exists
+      file:
+        path: /etc/ssh/sshd_config.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      when: not bootstrap_dry_run
+
+    - name: Create SSH hardening drop-in
+      template:
+        src: sshd_config.conf.j2
+        dest: /etc/ssh/sshd_config.d/00-linux-server-bootstrap.conf
+        owner: root
+        group: root
+        mode: '0600'
+      when: not bootstrap_dry_run
+      notify: reload sshd
+
+    - name: Ensure Include directive in sshd_config
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        line: "Include /etc/ssh/sshd_config.d/*.conf"
+        insertafter: BOF
+        state: present
+      when: not bootstrap_dry_run
+      notify: reload sshd
+
+    - name: Test SSH config
+      command: sshd -t
+      changed_when: false
+      register: sshd_test
+      when: not bootstrap_dry_run
+
+    - name: Save state
+      lineinfile:
+        path: "{{ bootstrap_state_dir }}/state.env"
+        line: "{{ item.key }}={{ item.value }}"
+        create: true
+        owner: root
+        group: root
+        mode: '0600'
+      loop:
+        - { key: "SSH_PORT", value: "{{ bootstrap_ssh_port }}" }
+        - { key: "SSH_ALLOW_USERS_LINE", value: "{{ bootstrap_ssh_users | join(' ') }}" }
+      when: not bootstrap_dry_run
+
+  tags: ['ssh']
+  rescue:
+    - name: SSH stage failed - attempting rollback
+      copy:
+        src: "{{ bootstrap_backup_root }}/ssh/{{ bootstrap_backup_ts }}/sshd_config"
+        dest: /etc/ssh/sshd_config
+        remote_src: true
+      when: bootstrap_backup_ts is defined and not bootstrap_dry_run
+      notify: restart sshd
+    - name: SSH stage failed
+      fail:
+        msg: "SSH hardening stage failed - config restored from backup"

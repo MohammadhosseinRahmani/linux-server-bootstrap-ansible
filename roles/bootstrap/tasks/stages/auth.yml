@@ -1,0 +1,48 @@
+---
+- name: Stage 13 - auth policy
+  block:
+    - name: Install PAM modules
+      package:
+        name: "{{ bootstrap_pwquality_package }}"
+        state: present
+      when: bootstrap_family in ['debian', 'rhel'] and not bootstrap_dry_run
+
+    - name: Configure pwquality
+      copy:
+        dest: /etc/security/pwquality.conf
+        content: |
+          minlen = {{ bootstrap_min_len | default('14') }}
+          dcredit = -1
+          ucredit = -1
+          lcredit = -1
+          ocredit = -1
+          minclass = 4
+        owner: root
+        group: root
+        mode: '0644'
+      when: not bootstrap_dry_run
+
+    - name: Configure faillock
+      copy:
+        dest: /etc/security/faillock.conf
+        content: |
+          deny = {{ bootstrap_deny | default('3') }}
+          unlock_time = 900
+          fail_interval = 900
+        owner: root
+        group: root
+        mode: '0644'
+      when: not bootstrap_dry_run
+
+    - name: Set umask in login.defs
+      lineinfile:
+        path: /etc/login.defs
+        regexp: '^UMASK'
+        line: "UMASK {{ bootstrap_umask | default('027') }}"
+      when: not bootstrap_dry_run
+
+  tags: ['auth']
+  rescue:
+    - name: auth stage failed
+      fail:
+        msg: "auth policy configuration failed"

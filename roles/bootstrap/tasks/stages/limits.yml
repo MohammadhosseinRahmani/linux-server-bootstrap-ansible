@@ -1,0 +1,31 @@
+---
+- name: Stage 7 - limits
+  block:
+    - name: Copy limits config
+      copy:
+        src: limits.conf
+        dest: /etc/security/limits.d/99-linux-server-bootstrap.conf
+        owner: root
+        group: root
+        mode: '0644'
+      when: not bootstrap_dry_run
+
+    - name: Set core dump limit
+      lineinfile:
+        path: /etc/security/limits.d/99-linux-server-bootstrap.conf
+        regexp: '^\*.*hard.*core'
+        line: "* hard core {{ bootstrap_core_size | default('0') }}"
+      when: not bootstrap_dry_run
+
+    - name: Set max logins
+      lineinfile:
+        path: /etc/security/limits.d/99-linux-server-bootstrap.conf
+        regexp: '^\*.*maxlogins'
+        line: "* hard maxlogins {{ bootstrap_max_logins | default('10') }}"
+      when: bootstrap_max_logins != "" and not bootstrap_dry_run
+
+  tags: ['limits']
+  rescue:
+    - name: limits stage failed
+      fail:
+        msg: "limits configuration failed"

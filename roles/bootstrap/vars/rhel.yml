@@ -1,0 +1,20 @@
+---
+# RHEL family specific variables
+bootstrap_packages_base:
+  - firewalld
+  - fail2ban
+  - audit
+  - rsyslog
+  - cronie
+  - policycoreutils-python-utils
+  - libpwquality
+
+bootstrap_firewall_package: firewalld
+bootstrap_fail2ban_package: fail2ban
+bootstrap_audit_package: audit
+bootstrap_mac_package: policycoreutils
+bootstrap_time_sync_package: chrony
+bootstrap_pwquality_package: libpwquality
+
+bootstrap_sshd_service: sshd
+bootstrap_sshd_socket_supported: true

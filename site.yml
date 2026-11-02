@@ -1,0 +1,22 @@
+---
+- name: Linux Server Bootstrap (Ansible)
+  hosts: all
+  become: true
+  gather_facts: true
+  
+  pre_tasks:
+    - name: Detect OS family and init system
+      include_role:
+        name: bootstrap
+        tasks_from: detect
+      tags: ['always']
+  
+  roles:
+    - role: bootstrap
+      tags: ['bootstrap']
+  
+  post_tasks:
+    - name: Display completion message
+      debug:
+        msg: "Bootstrap completed. Run verify.yml to check hardening status."
+      tags: ['always']

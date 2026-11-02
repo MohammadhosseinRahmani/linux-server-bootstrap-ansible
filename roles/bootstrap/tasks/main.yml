@@ -1,0 +1,31 @@
+---
+- name: Main bootstrap tasks
+  include_role:
+    name: bootstrap
+    tasks_from: detect
+  tags: ['always']
+
+- name: Include family-specific vars
+  include_vars: "{{ item }}"
+  with_first_found:
+    - "vars/{{ bootstrap_family }}.yml"
+    - "vars/default.yml"
+  tags: ['always']
+
+- name: Create backup and state directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0750'
+    owner: root
+    group: root
+  loop:
+    - "{{ bootstrap_backup_root }}"
+    - "{{ bootstrap_state_dir }}"
+  tags: ['always']
+
+- name: Run bootstrap stages in order
+  include_tasks: "stages/{{ item }}.yml"
+  loop: "{{ bootstrap_stages }}"
+  when: bootstrap_stages | length > 0
+  tags: ['bootstrap']

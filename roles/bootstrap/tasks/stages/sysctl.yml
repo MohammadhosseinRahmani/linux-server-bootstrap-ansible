@@ -1,0 +1,23 @@
+---
+- name: Stage 6 - sysctl hardening
+  block:
+    - name: Copy sysctl config
+      copy:
+        src: sysctl.conf
+        dest: /etc/sysctl.d/99-linux-server-bootstrap.conf
+        owner: root
+        group: root
+        mode: '0644'
+      when: not bootstrap_dry_run
+      notify: reload sysctl
+
+    - name: Apply sysctl settings
+      command: sysctl --system
+      changed_when: true
+      when: not bootstrap_dry_run
+
+  tags: ['sysctl']
+  rescue:
+    - name: sysctl stage failed
+      fail:
+        msg: "sysctl configuration failed"

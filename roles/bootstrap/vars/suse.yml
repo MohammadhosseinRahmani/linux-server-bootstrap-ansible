@@ -1,0 +1,21 @@
+---
+# SUSE family specific variables
+bootstrap_packages_base:
+  - firewalld
+  - fail2ban
+  - audit
+  - rsyslog
+  - cron
+  - apparmor-parser
+  - apparmor-profiles
+  - libpwquality1
+
+bootstrap_firewall_package: firewalld
+bootstrap_fail2ban_package: fail2ban
+bootstrap_audit_package: audit
+bootstrap_mac_package: apparmor-parser
+bootstrap_time_sync_package: chrony
+bootstrap_pwquality_package: libpwquality1
+
+bootstrap_sshd_service: sshd
+bootstrap_sshd_socket_supported: true

@@ -1,0 +1,23 @@
+---
+# Debian family specific variables
+bootstrap_packages_base:
+  - ufw
+  - fail2ban
+  - auditd
+  - audispd-plugins
+  - rsyslog
+  - cron
+  - apparmor
+  - apparmor-utils
+  - libpam-pwquality
+  - libpam-modules
+
+bootstrap_firewall_package: ufw
+bootstrap_fail2ban_package: fail2ban
+bootstrap_audit_package: auditd
+bootstrap_mac_package: apparmor
+bootstrap_time_sync_package: systemd-timesyncd
+bootstrap_pwquality_package: libpam-pwquality
+
+bootstrap_sshd_service: ssh
+bootstrap_sshd_socket_supported: true

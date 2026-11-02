@@ -1,0 +1,12 @@
+---
+[sshd]
+enabled = true
+port = {{ bootstrap_ssh_port }}
+filter = sshd
+logpath = {{ '/var/log/auth.log' if bootstrap_family == 'debian' else '/var/log/secure' }}
+maxretry = 3
+findtime = 10m
+bantime = 1h
+backend = {{ 'systemd' if bootstrap_is_systemd else 'auto' }}
+action = {{ '%(action_mwl)s' if bootstrap_family == 'debian' else '%(action_mw)s' }}
+>>>>>>> REPLACE

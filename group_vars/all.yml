@@ -1,0 +1,51 @@
+---
+# Global defaults for Linux Server Bootstrap
+# Mirror CLI options from bootstrap.sh
+
+# SSH configuration
+bootstrap_ssh_users: []
+bootstrap_ssh_port: 22
+bootstrap_new_users: []
+bootstrap_user_keys: []
+
+# Base setup
+bootstrap_hostname: ""
+bootstrap_timezone: ""
+bootstrap_locale: ""
+bootstrap_updates: false
+bootstrap_timesync: false
+bootstrap_autoupdates: false
+
+# User management
+bootstrap_sudo: false
+bootstrap_groups: ""
+
+# Hardening options
+bootstrap_disable_routing: false
+bootstrap_fix_world_writable: false
+bootstrap_watch_privileged: false
+bootstrap_immutable: false
+bootstrap_install_mac: false
+bootstrap_include_optional: false
+bootstrap_max_logins: ""
+bootstrap_core_size: ""
+bootstrap_deny: ""
+bootstrap_min_len: ""
+bootstrap_umask: ""
+
+# Stage control
+bootstrap_only: []
+bootstrap_skip: []
+
+# Safety
+bootstrap_assume_yes: false
+bootstrap_dry_run: false
+
+# Paths
+bootstrap_backup_root: /var/backups/linux-server-bootstrap
+bootstrap_state_dir: /etc/linux-server-bootstrap
+bootstrap_log_file: /var/log/linux-server-bootstrap.log
+
+# Firewall
+bootstrap_skip_firewall: false
+bootstrap_skip_fail2ban: false

@@ -1,0 +1,79 @@
+---
+- name: Stage 1 - base setup
+  block:
+    - name: Create backup timestamp
+      set_fact:
+        bootstrap_backup_ts: "{{ ansible_date_time.epoch }}"
+
+    - name: Backup base config files
+      copy:
+        src: "{{ item.src }}"
+        dest: "{{ bootstrap_backup_root }}/base/{{ bootstrap_backup_ts }}/{{ item.dest }}"
+        remote_src: true
+        backup: no
+        owner: root
+        group: root
+        mode: '0600'
+      loop:
+        - { src: '/etc/hostname', dest: 'hostname' }
+        - { src: '/etc/hosts', dest: 'hosts' }
+        - { src: '/etc/timezone', dest: 'timezone' }
+        - { src: '/etc/localtime', dest: 'localtime' }
+      ignore_errors: true
+      when: not bootstrap_dry_run
+
+    - name: Update package cache
+      package:
+        update_cache: yes
+      when: bootstrap_updates | bool and not bootstrap_dry_run
+
+    - name: Upgrade packages
+      package:
+        name: "*"
+        state: latest
+      when: bootstrap_updates | bool and not bootstrap_dry_run
+      ignore_errors: true
+
+    - name: Set hostname
+      hostname:
+        name: "{{ bootstrap_hostname }}"
+      when: bootstrap_hostname != "" and not bootstrap_dry_run
+
+    - name: Set timezone
+      timezone:
+        name: "{{ bootstrap_timezone }}"
+      when: bootstrap_timezone != "" and not bootstrap_dry_run
+
+    - name: Install time sync package
+      package:
+        name: "{{ bootstrap_time_sync_package }}"
+        state: present
+      when: bootstrap_timesync | bool and not bootstrap_dry_run
+
+    - name: Enable time sync service
+      service:
+        name: "{{ 'systemd-timesyncd' if bootstrap_family == 'debian' else 'chronyd' }}"
+        enabled: true
+        state: started
+      when: bootstrap_timesync | bool and bootstrap_is_systemd and not bootstrap_dry_run
+      ignore_errors: true
+
+    - name: Install unattended upgrades (Debian)
+      package:
+        name:
+          - unattended-upgrades
+          - apt-listchanges
+        state: present
+      when: bootstrap_autoupdates | bool and bootstrap_family == 'debian' and not bootstrap_dry_run
+
+    - name: Install dnf-automatic (RHEL)
+      package:
+        name: dnf-automatic
+        state: present
+      when: bootstrap_autoupdates | bool and bootstrap_family == 'rhel' and bootstrap_pkg_mgr == 'dnf' and not bootstrap_dry_run
+
+  tags: ['base']
+  rescue:
+    - name: Base stage failed
+      fail:
+        msg: "Base setup stage failed"

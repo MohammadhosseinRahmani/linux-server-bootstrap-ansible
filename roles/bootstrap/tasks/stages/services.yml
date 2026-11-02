@@ -1,0 +1,22 @@
+---
+- name: Stage 11 - services
+  block:
+    - name: Disable legacy services
+      service:
+        name: "{{ item }}"
+        enabled: false
+        state: stopped
+      loop:
+        - telnet
+        - rsh
+        - rlogin
+        - rexec
+        - tftp
+      ignore_errors: true
+      when: not bootstrap_dry_run
+
+  tags: ['services']
+  rescue:
+    - name: services stage failed
+      fail:
+        msg: "services configuration failed"

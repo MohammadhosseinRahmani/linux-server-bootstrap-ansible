@@ -1,0 +1,82 @@
+---
+- name: Stage 4 - Firewall
+  block:
+    - name: Create backup timestamp
+      set_fact:
+        bootstrap_backup_ts: "{{ ansible_date_time.epoch }}"
+
+    - name: Install firewall (Debian/ufw)
+      apt:
+        name: ufw
+        state: present
+        update_cache: yes
+      when: bootstrap_firewall == 'ufw' and bootstrap_family == 'debian' and not bootstrap_dry_run
+
+    - name: Install firewalld (RHEL/SUSE)
+      package:
+        name: firewalld
+        state: present
+      when: bootstrap_firewall == 'firewalld' and not bootstrap_dry_run
+
+    - name: Backup firewall rules (ufw)
+      shell: |
+        mkdir -p {{ bootstrap_backup_root }}/firewall/{{ bootstrap_backup_ts }}
+        ufw status verbose > {{ bootstrap_backup_root }}/firewall/{{ bootstrap_backup_ts }}/ufw_status.txt 2>&1 || true
+      changed_when: false
+      when: bootstrap_firewall == 'ufw' and not bootstrap_dry_run
+
+    - name: Backup firewall rules (firewalld)
+      shell: |
+        mkdir -p {{ bootstrap_backup_root }}/firewall/{{ bootstrap_backup_ts }}
+        firewall-cmd --list-all > {{ bootstrap_backup_root }}/firewall/{{ bootstrap_backup_ts }}/firewalld_status.txt 2>&1 || true
+      changed_when: false
+      when: bootstrap_firewall == 'firewalld' and not bootstrap_dry_run
+
+    - name: Configure ufw
+      block:
+        - name: Set ufw defaults
+          ufw:
+            direction: incoming
+            policy: deny
+        - name: Set ufw outgoing default
+          ufw:
+            direction: outgoing
+            policy: allow
+        - name: Allow SSH port
+          ufw:
+            rule: allow
+            port: "{{ bootstrap_ssh_port }}"
+            proto: tcp
+            comment: "linux-server-bootstrap ssh"
+        - name: Enable ufw
+          ufw:
+            state: enabled
+      when: bootstrap_firewall == 'ufw' and not bootstrap_skip_firewall | bool and not bootstrap_dry_run
+
+    - name: Configure firewalld
+      block:
+        - name: Start and enable firewalld
+          service:
+            name: firewalld
+            state: started
+            enabled: true
+        - name: Allow SSH service/port
+          firewalld:
+            port: "{{ bootstrap_ssh_port }}/tcp"
+            permanent: true
+            state: enabled
+            immediate: true
+        - name: Set default zone target
+          firewalld:
+            zone: public
+            target: DROP
+            permanent: true
+            state: present
+            immediate: true
+      when: bootstrap_firewall == 'firewalld' and not bootstrap_skip_firewall | bool and not bootstrap_dry_run
+
+  tags: ['firewall']
+  rescue:
+    - name: Firewall stage failed
+      fail:
+        msg: "Firewall configuration failed"

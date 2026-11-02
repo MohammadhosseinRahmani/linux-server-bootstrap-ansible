@@ -1,0 +1,51 @@
+---
+- name: Rollback Linux Server Bootstrap changes
+  hosts: all
+  become: true
+  gather_facts: true
+  
+  tasks:
+    - name: Find latest backup
+      find:
+        paths: "{{ bootstrap_backup_root | default('/var/backups/linux-server-bootstrap') }}"
+        file_type: directory
+        recurse: yes
+      register: backups
+      ignore_errors: true
+      
+    - name: Display available backups
+      debug:
+        msg: "Available backups found in {{ bootstrap_backup_root | default('/var/backups/linux-server-bootstrap') }}"
+      when: backups.files is defined
+      
+    - name: Rollback SSH config
+      copy:
+        src: "{{ item.path }}/sshd_config"
+        dest: /etc/ssh/sshd_config
+        remote_src: true
+        owner: root
+        group: root
+        mode: '0600'
+      with_items: "{{ backups.files | default([]) }}"
+      when: item.path is regex('.*ssh.*')
+      ignore_errors: true
+      notify: restart sshd
+      
+    - name: Remove bootstrap SSH drop-in
+      file:
+        path: /etc/ssh/sshd_config.d/00-linux-server-bootstrap.conf
+        state: absent
+      notify: restart sshd
+      
+    - name: Restart SSH
+      service:
+        name: "{{ 'ssh' if ansible_os_family == 'Debian' else 'sshd' }}"
+        state: restarted
+      ignore_errors: true
+
+  handlers:
+    - name: restart sshd
+      service:
+        name: "{{ 'ssh' if ansible_os_family == 'Debian' else 'sshd' }}"
+        state: restarted
+      ignore_errors: true

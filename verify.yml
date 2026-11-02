@@ -1,0 +1,44 @@
+---
+- name: Verify Linux Server Bootstrap hardening
+  hosts: all
+  become: true
+  gather_facts: true
+  
+  tasks:
+    - name: Check SSH hardening drop-in exists
+      stat:
+        path: /etc/ssh/sshd_config.d/00-linux-server-bootstrap.conf
+      register: ssh_dropin
+      
+    - name: Check SSH config test
+      command: sshd -t
+      changed_when: false
+      register: sshd_test
+      ignore_errors: true
+      
+    - name: Check firewall status
+      shell: |
+        if command -v ufw >/dev/null 2>&1; then
+          ufw status | grep -q "Status: active" && echo "ufw-active" || echo "ufw-inactive"
+        elif command -v firewall-cmd >/dev/null 2>&1; then
+          firewall-cmd --state 2>&1 | grep -q "running" && echo "firewalld-running" || echo "firewalld-inactive"
+        else
+          echo "none"
+        fi
+      changed_when: false
+      register: fw_status
+      
+    - name: Check fail2ban
+      service_facts:
+      
+    - name: Check auditd
+      service_facts:
+      
+    - name: Display verification results
+      debug:
+        msg: |
+          SSH drop-in exists: {{ ssh_dropin.stat.exists }}
+          SSH config valid: {{ sshd_test.rc == 0 }}
+          Firewall: {{ fw_status.stdout }}
+          fail2ban: {{ ansible_facts.services['fail2ban.service'].state | default('unknown') if ansible_facts.services is defined else 'unknown' }}
+          auditd: {{ ansible_facts.services['auditd.service'].state | default(ansible_facts.services['audit.service'].state) | default('unknown') if ansible_facts.services is defined else 'unknown' }}

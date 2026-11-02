@@ -1,0 +1,42 @@
+---
+- name: Stage 2 - user preparation
+  block:
+    - name: Create backup timestamp
+      set_fact:
+        bootstrap_backup_ts: "{{ ansible_date_time.epoch }}"
+
+    - name: Create new users
+      user:
+        name: "{{ item }}"
+        shell: /bin/bash
+        groups: "{{ bootstrap_groups.split(',') if bootstrap_groups else omit }}"
+        append: true
+        create_home: true
+        state: present
+      loop: "{{ bootstrap_new_users }}"
+      when: bootstrap_new_users | length > 0 and not bootstrap_dry_run
+
+    - name: Add SSH keys for users
+      authorized_key:
+        user: "{{ item.user }}"
+        key: "{{ item.key }}"
+        state: present
+      loop: "{{ bootstrap_user_keys }}"
+      when: bootstrap_user_keys | length > 0 and not bootstrap_dry_run
+
+    - name: Configure sudo access
+      copy:
+        content: "%{{ item }} ALL=(ALL) NOPASSWD:ALL\n"
+        dest: "/etc/sudoers.d/90-{{ item }}-bootstrap"
+        owner: root
+        group: root
+        mode: '0440'
+        validate: 'visudo -cf %s'
+      loop: "{{ bootstrap_ssh_users + bootstrap_new_users | unique }}"
+      when: bootstrap_sudo | bool and (bootstrap_ssh_users | length > 0 or bootstrap_new_users | length > 0) and not bootstrap_dry_run
+
+  tags: ['users']
+  rescue:
+    - name: Users stage failed
+      fail:
+        msg: "User preparation stage failed"
