@@ -14,21 +14,28 @@
             name: apparmor
             enabled: true
             state: started
-      when: bootstrap_mac_system == 'apparmor' and bootstrap_install_mac | bool and not bootstrap_dry_run
+          ignore_errors: true
+      when: bootstrap_mac_system == 'apparmor' and bootstrap_install_mac | bool and (not bootstrap_dry_run | bool)
 
     - name: Configure SELinux (RHEL/SUSE)
       block:
+        - name: Check SELinux status
+          command: getenforce
+          register: selinux_status
+          changed_when: false
+          failed_when: false
         - name: Set SELinux to enforcing
           selinux:
             policy: targeted
             state: enforcing
-          when: ansible_selinux.status == 'enabled'
+          when: selinux_status.stdout is defined and 'Enforcing' not in selinux_status.stdout and selinux_status.rc == 0
         - name: Install policy tools
           package:
-            name: policycoreutils-python-utils
+            name: "{{ 'policycoreutils-python-utils' if bootstrap_family == 'rhel' else 'policycoreutils' }}"
             state: present
           when: bootstrap_family == 'rhel'
-      when: bootstrap_mac_system == 'selinux' and bootstrap_install_mac | bool and not bootstrap_dry_run
+          ignore_errors: true
+      when: bootstrap_mac_system == 'selinux' and bootstrap_install_mac | bool and (not bootstrap_dry_run | bool)
       ignore_errors: true
 
   tags: ['mac']

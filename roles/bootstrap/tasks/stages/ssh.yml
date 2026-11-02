@@ -6,15 +6,15 @@
         that:
           - bootstrap_ssh_users | length > 0
         fail_msg: "At least one SSH user must be specified via bootstrap_ssh_users"
-      when: not bootstrap_dry_run
+      when: not bootstrap_dry_run | bool
 
     - name: Guard against locking out current user
       assert:
         that:
           - ansible_user in bootstrap_ssh_users
-        fail_msg: "Current user {{ ansible_user }} would lose SSH access. Add it to bootstrap_ssh_users."
+        fail_msg: "Current user {{ ansible_user }} would lose SSH access. Add it to bootstrap_ssh_users or set bootstrap_assume_yes=true."
         quiet: true
-      when: not bootstrap_assume_yes | bool and not bootstrap_dry_run
+      when: (not bootstrap_assume_yes | bool) and (not bootstrap_dry_run | bool)
 
     - name: Create backup timestamp
       set_fact:
@@ -29,14 +29,14 @@
         owner: root
         group: root
         mode: '0600'
-      when: not bootstrap_dry_run
+      when: not bootstrap_dry_run | bool
 
     - name: Backup sshd_config.d
       shell: |
         mkdir -p {{ bootstrap_backup_root }}/ssh/{{ bootstrap_backup_ts }}/sshd_config.d
         cp -r /etc/ssh/sshd_config.d/* {{ bootstrap_backup_root }}/ssh/{{ bootstrap_backup_ts }}/sshd_config.d/ 2>/dev/null || true
       changed_when: false
-      when: not bootstrap_dry_run
+      when: not bootstrap_dry_run | bool
 
     - name: Ensure sshd_config.d directory exists
       file:
@@ -45,7 +45,7 @@
         owner: root
         group: root
         mode: '0755'
-      when: not bootstrap_dry_run
+      when: not bootstrap_dry_run | bool
 
     - name: Create SSH hardening drop-in
       template:
@@ -54,23 +54,25 @@
         owner: root
         group: root
         mode: '0600'
-      when: not bootstrap_dry_run
+      when: not bootstrap_dry_run | bool
       notify: reload sshd
 
     - name: Ensure Include directive in sshd_config
       lineinfile:
         path: /etc/ssh/sshd_config
+        regexp: '^Include /etc/ssh/sshd_config.d/\*\.conf'
         line: "Include /etc/ssh/sshd_config.d/*.conf"
         insertafter: BOF
         state: present
-      when: not bootstrap_dry_run
+      when: not bootstrap_dry_run | bool
       notify: reload sshd
 
     - name: Test SSH config
       command: sshd -t
       changed_when: false
       register: sshd_test
-      when: not bootstrap_dry_run
+      failed_when: sshd_test.rc != 0
+      when: not bootstrap_dry_run | bool
 
     - name: Save state
       lineinfile:
@@ -83,7 +85,8 @@
       loop:
         - { key: "SSH_PORT", value: "{{ bootstrap_ssh_port }}" }
         - { key: "SSH_ALLOW_USERS_LINE", value: "{{ bootstrap_ssh_users | join(' ') }}" }
-      when: not bootstrap_dry_run
+        - { key: "OS_FAMILY", value: "{{ bootstrap_family }}" }
+      when: not bootstrap_dry_run | bool
 
   tags: ['ssh']
   rescue:
@@ -92,7 +95,16 @@
         src: "{{ bootstrap_backup_root }}/ssh/{{ bootstrap_backup_ts }}/sshd_config"
         dest: /etc/ssh/sshd_config
         remote_src: true
-      when: bootstrap_backup_ts is defined and not bootstrap_dry_run
+        owner: root
+        group: root
+        mode: '0600'
+      when: bootstrap_backup_ts is defined and (not bootstrap_dry_run | bool)
+      notify: restart sshd
+    - name: Remove bootstrap SSH drop-in on failure
+      file:
+        path: /etc/ssh/sshd_config.d/00-linux-server-bootstrap.conf
+        state: absent
+      when: bootstrap_backup_ts is defined and (not bootstrap_dry_run | bool)
       notify: restart sshd
     - name: SSH stage failed
       fail:

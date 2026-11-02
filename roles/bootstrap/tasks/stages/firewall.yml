@@ -10,27 +10,27 @@
         name: ufw
         state: present
         update_cache: yes
-      when: bootstrap_firewall == 'ufw' and bootstrap_family == 'debian' and not bootstrap_dry_run
+      when: bootstrap_firewall == 'ufw' and bootstrap_family == 'debian' and (not bootstrap_skip_firewall | bool) and (not bootstrap_dry_run | bool)
 
     - name: Install firewalld (RHEL/SUSE)
       package:
         name: firewalld
         state: present
-      when: bootstrap_firewall == 'firewalld' and not bootstrap_dry_run
+      when: bootstrap_firewall == 'firewalld' and (not bootstrap_skip_firewall | bool) and (not bootstrap_dry_run | bool)
 
     - name: Backup firewall rules (ufw)
       shell: |
         mkdir -p {{ bootstrap_backup_root }}/firewall/{{ bootstrap_backup_ts }}
         ufw status verbose > {{ bootstrap_backup_root }}/firewall/{{ bootstrap_backup_ts }}/ufw_status.txt 2>&1 || true
       changed_when: false
-      when: bootstrap_firewall == 'ufw' and not bootstrap_dry_run
+      when: bootstrap_firewall == 'ufw' and (not bootstrap_skip_firewall | bool) and (not bootstrap_dry_run | bool)
 
     - name: Backup firewall rules (firewalld)
       shell: |
         mkdir -p {{ bootstrap_backup_root }}/firewall/{{ bootstrap_backup_ts }}
-        firewall-cmd --list-all > {{ bootstrap_backup_root }}/firewall/{{ bootstrap_backup_ts }}/firewalld_status.txt 2>&1 || true
+        firewall-cmd --list-all-zones > {{ bootstrap_backup_root }}/firewall/{{ bootstrap_backup_ts }}/firewalld_status.txt 2>&1 || true
       changed_when: false
-      when: bootstrap_firewall == 'firewalld' and not bootstrap_dry_run
+      when: bootstrap_firewall == 'firewalld' and (not bootstrap_skip_firewall | bool) and (not bootstrap_dry_run | bool)
 
     - name: Configure ufw
       block:
@@ -51,7 +51,7 @@
         - name: Enable ufw
           ufw:
             state: enabled
-      when: bootstrap_firewall == 'ufw' and not bootstrap_skip_firewall | bool and not bootstrap_dry_run
+      when: bootstrap_firewall == 'ufw' and (not bootstrap_skip_firewall | bool) and (not bootstrap_dry_run | bool)
 
     - name: Configure firewalld
       block:
@@ -60,20 +60,20 @@
             name: firewalld
             state: started
             enabled: true
-        - name: Allow SSH service/port
+        - name: Allow SSH port
           firewalld:
             port: "{{ bootstrap_ssh_port }}/tcp"
             permanent: true
             state: enabled
             immediate: true
-        - name: Set default zone target
+        - name: Allow SSH service if defined
           firewalld:
-            zone: public
-            target: DROP
+            service: ssh
             permanent: true
-            state: present
+            state: enabled
             immediate: true
-      when: bootstrap_firewall == 'firewalld' and not bootstrap_skip_firewall | bool and not bootstrap_dry_run
+          ignore_errors: true
+      when: bootstrap_firewall == 'firewalld' and (not bootstrap_skip_firewall | bool) and (not bootstrap_dry_run | bool)
 
   tags: ['firewall']
   rescue:

@@ -1,4 +1,3 @@
----
 # SSH hardening configuration template
 Port {{ bootstrap_ssh_port }}
 PermitRootLogin no
@@ -29,15 +28,12 @@ Subsystem sftp /usr/libexec/openssh/sftp-server
 Compression no
 AllowStreamLocalForwarding no
 AcceptEnv LANG LC_*
-LoginGraceTime 60
 StrictModes yes
 MaxStartups 10:30:60
-BanPAM yes
 UseDNS no
 IgnoreRhosts yes
 HostbasedAuthentication no
 PermitTunnel no
-AllowTcpForwarding no
 GatewayPorts no
 X11UseLocalhost yes
 PrintMotd no
@@ -45,7 +41,4 @@ PrintLastLog yes
 TCPKeepAlive no
 AuthenticationMethods publickey
 PubkeyAuthentication yes
-PasswordAuthentication no
-PermitEmptyPasswords no
 UsePrivilegeSeparation sandbox
->>>>>>> REPLACE

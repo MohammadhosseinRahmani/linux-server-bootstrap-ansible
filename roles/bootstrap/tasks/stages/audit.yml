@@ -5,7 +5,7 @@
       package:
         name: "{{ 'auditd' if bootstrap_family == 'debian' else 'audit' }}"
         state: present
-      when: not bootstrap_dry_run
+      when: not bootstrap_dry_run | bool
 
     - name: Copy audit rules
       copy:
@@ -14,21 +14,30 @@
         owner: root
         group: root
         mode: '0600'
-      when: not bootstrap_dry_run
+      when: not bootstrap_dry_run | bool
       notify: restart auditd
 
     - name: Load audit rules
       command: augenrules --load
       changed_when: true
-      when: not bootstrap_dry_run
+      when: not bootstrap_dry_run | bool
       ignore_errors: true
 
-    - name: Enable and start auditd
+    - name: Enable and start auditd (systemd)
+      service:
+        name: "{{ 'auditd' if bootstrap_family == 'debian' else 'auditd' }}"
+        enabled: true
+        state: started
+      when: bootstrap_is_systemd and (not bootstrap_dry_run | bool)
+      ignore_errors: true
+
+    - name: Enable auditd service (non-debian naming)
       service:
         name: auditd
         enabled: true
         state: started
-      when: bootstrap_is_systemd and not bootstrap_dry_run
+      when: (not bootstrap_is_systemd) and bootstrap_family != 'debian' and (not bootstrap_dry_run | bool)
+      ignore_errors: true
 
   tags: ['audit']
   rescue:

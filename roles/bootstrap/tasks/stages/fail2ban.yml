@@ -5,7 +5,7 @@
       package:
         name: fail2ban
         state: present
-      when: not bootstrap_skip_fail2ban | bool and not bootstrap_dry_run
+      when: (not bootstrap_skip_fail2ban | bool) and (not bootstrap_dry_run | bool)
 
     - name: Create fail2ban jail config
       template:
@@ -14,7 +14,7 @@
         owner: root
         group: root
         mode: '0644'
-      when: not bootstrap_skip_fail2ban | bool and not bootstrap_dry_run
+      when: (not bootstrap_skip_fail2ban | bool) and (not bootstrap_dry_run | bool)
       notify: restart fail2ban
 
     - name: Enable and start fail2ban
@@ -22,7 +22,8 @@
         name: fail2ban
         enabled: true
         state: started
-      when: not bootstrap_skip_fail2ban | bool and not bootstrap_dry_run
+      when: (not bootstrap_skip_fail2ban | bool) and (not bootstrap_dry_run | bool)
+      ignore_errors: true
 
   tags: ['fail2ban']
   rescue:
