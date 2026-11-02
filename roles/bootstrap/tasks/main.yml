@@ -1,15 +1,13 @@
 ---
 - name: Main bootstrap tasks
-  include_role:
-    name: bootstrap
-    tasks_from: detect
+  include_tasks: detect.yml
   tags: ['always']
 
 - name: Include family-specific vars
   include_vars: "{{ item }}"
   with_first_found:
-    - "vars/{{ bootstrap_family }}.yml"
-    - "vars/default.yml"
+    - "{{ bootstrap_family }}.yml"
+    - "default.yml"
   tags: ['always']
 
 - name: Create backup and state directories
@@ -24,8 +22,18 @@
     - "{{ bootstrap_state_dir }}"
   tags: ['always']
 
+- name: Determine stages to run
+  set_fact:
+    bootstrap_stages_to_run: >-
+      {%- if bootstrap_only | length > 0 -%}
+        {{ bootstrap_stage_order | intersect(bootstrap_only) }}
+      {%- else -%}
+        {{ bootstrap_stage_order | difference(bootstrap_skip) }}
+      {%- endif -%}
+  tags: ['always']
+
 - name: Run bootstrap stages in order
   include_tasks: "stages/{{ item }}.yml"
-  loop: "{{ bootstrap_stages }}"
-  when: bootstrap_stages | length > 0
+  loop: "{{ bootstrap_stages_to_run }}"
+  when: bootstrap_stages_to_run | length > 0
   tags: ['bootstrap']

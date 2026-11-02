@@ -1,48 +1,45 @@
 ---
-- name: detect
-  hosts: all
-  become: true
-  gather_facts: true
-  tasks:
-    - name: Set OS family facts
-      set_fact:
-        bootstrap_os_family: "{{ ansible_os_family | lower }}"
-        bootstrap_distro: "{{ ansible_distribution | lower }}"
-        bootstrap_distro_major: "{{ ansible_distribution_major_version }}"
-        bootstrap_init_system: "{{ ansible_service_mgr }}"
-        bootstrap_is_systemd: "{{ ansible_service_mgr == 'systemd' }}"
+- name: Detect OS family and init system
+  set_fact:
+    bootstrap_os_family: "{{ ansible_os_family | lower }}"
+    bootstrap_distro: "{{ ansible_distribution | lower }}"
+    bootstrap_distro_major: "{{ ansible_distribution_major_version }}"
+    bootstrap_init_system: "{{ ansible_service_mgr }}"
+    bootstrap_is_systemd: "{{ ansible_service_mgr == 'systemd' }}"
 
-    - name: Map to bootstrap families
-      set_fact:
-        bootstrap_family: >-
-          {%- if bootstrap_os_family == 'debian' -%}debian
-          {%- elif bootstrap_os_family in ['redhat', 'rocky', 'almalinux'] or bootstrap_distro in ['fedora', 'amazon'] -%}rhel
-          {%- elif bootstrap_os_family == 'suse' or bootstrap_distro in ['opensuse', 'sles'] -%}suse
-          {%- else -%}{{ bootstrap_os_family }}{%- endif -%}
+- name: Map to bootstrap families
+  set_fact:
+    bootstrap_family: >-
+      {%- if bootstrap_os_family == 'debian' -%}debian
+      {%- elif bootstrap_os_family in ['redhat'] or bootstrap_distro in ['fedora', 'amazon', 'rocky', 'almalinux', 'oraclelinux'] -%}rhel
+      {%- elif bootstrap_os_family == 'suse' or bootstrap_distro in ['opensuse', 'sles'] -%}suse
+      {%- else -%}{{ bootstrap_os_family }}{%- endif -%}
 
-    - name: Set package manager
-      set_fact:
-        bootstrap_pkg_mgr: >-
-          {%- if bootstrap_family == 'debian' -%}apt
-          {%- elif bootstrap_family == 'rhel' -%}{% if ansible_pkg_mgr == 'dnf' %}dnf{% else %}yum{% endif %}
-          {%- elif bootstrap_family == 'suse' -%}zypper
-          {%- else -%}{{ ansible_pkg_mgr }}{%- endif -%}
+- name: Set package manager
+  set_fact:
+    bootstrap_pkg_mgr: >-
+      {%- if bootstrap_family == 'debian' -%}apt
+      {%- elif bootstrap_family == 'rhel' -%}{% if ansible_pkg_mgr == 'dnf' %}dnf{% elif ansible_pkg_mgr == 'yum' %}yum{% else %}dnf{% endif %}
+      {%- elif bootstrap_family == 'suse' -%}zypper
+      {%- else -%}{{ ansible_pkg_mgr }}{%- endif -%}
 
-    - name: Set firewall backend
-      set_fact:
-        bootstrap_firewall: >-
-          {%- if bootstrap_family == 'debian' -%}ufw
-          {%- elif bootstrap_family in ['rhel', 'suse'] -%}firewalld
-          {%- else -%}none{%- endif -%}
+- name: Set firewall backend
+  set_fact:
+    bootstrap_firewall: >-
+      {%- if bootstrap_firewall_backend is defined -%}{{ bootstrap_firewall_backend }}
+      {%- elif bootstrap_family == 'debian' -%}ufw
+      {%- elif bootstrap_family in ['rhel', 'suse'] -%}firewalld
+      {%- else -%}none{%- endif -%}
 
-    - name: Set MAC system
-      set_fact:
-        bootstrap_mac_system: >-
-          {%- if bootstrap_family == 'debian' -%}apparmor
-          {%- elif bootstrap_family in ['rhel', 'suse'] -%}selinux
-          {%- else -%}none{%- endif -%}
+- name: Set MAC system
+  set_fact:
+    bootstrap_mac_system: >-
+      {%- if bootstrap_mac_system_backend is defined -%}{{ bootstrap_mac_system_backend }}
+      {%- elif bootstrap_family == 'debian' -%}apparmor
+      {%- elif bootstrap_family in ['rhel', 'suse'] -%}selinux
+      {%- else -%}none{%- endif -%}
 
-    - name: Display detected system
-      debug:
-        msg: "Detected: {{ bootstrap_distro }} {{ bootstrap_distro_major }} (family={{ bootstrap_family }}, pkg={{ bootstrap_pkg_mgr }}, init={{ bootstrap_init_system }}, fw={{ bootstrap_firewall }}, mac={{ bootstrap_mac_system }})"
-      tags: ['always']
+- name: Display detected system
+  debug:
+    msg: "Detected: {{ bootstrap_distro }} {{ bootstrap_distro_major }} (family={{ bootstrap_family }}, pkg={{ bootstrap_pkg_mgr }}, init={{ bootstrap_init_system }}, fw={{ bootstrap_firewall }}, mac={{ bootstrap_mac_system }})"
+  tags: ['always']
